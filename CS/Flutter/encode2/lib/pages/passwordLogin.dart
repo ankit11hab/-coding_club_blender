@@ -1,48 +1,55 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart';
+import 'package:encode2/constants.dart';
 
-class UsernameLogin extends StatefulWidget {
-  const UsernameLogin({Key? key}) : super(key: key);
+class PasswordLogin extends StatefulWidget {
+  final Object? username;
+  const PasswordLogin({Key? key, required this.username}) : super(key: key);
 
   @override
-  _UsernameLoginState createState() => _UsernameLoginState();
+  _PasswordLoginState createState() => _PasswordLoginState();
 }
 
-class _UsernameLoginState extends State<UsernameLogin> {
-  late String username;
+class _PasswordLoginState extends State<PasswordLogin> {
+  late String password;
   bool showCircularIndicator = false;
-  bool showUsernameValError = false;
+  bool showLoginError = false;
 
   void handleUsernameChange(String value) {
     setState(() {
-      username = value;
+      password = value;
     });
-    print(username);
   }
-  Future<void> validateUsername() async {
+
+  Future<void> loginUser() async {
     setState(() {
-      showUsernameValError = false;
-      showCircularIndicator = true;
+      showCircularIndicator=true;
+      showLoginError=false;
     });
-    var res = await http.post("https://63fc-146-196-45-54.ngrok.io/auth/check_username_exists/",
+    var res = await http.post("https://63fc-146-196-45-54.ngrok.io/auth/token/",
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
         body:jsonEncode(<String, String>{
-      'username': username,
-    }));
+          'username': widget.username.toString(),
+          'password':password
+        }));
     setState(() {
       showCircularIndicator=false;
     });
-    print(res.body);
-    if(res.body=='true')
-      Navigator.of(context).pushNamed('/passwordLogin',arguments:username);
-    else{
+    if(res.statusCode!=200){
       setState(() {
-        showUsernameValError=true;
+        showLoginError=true;
       });
+    }
+    else{
+      Map<String,dynamic> tokens = jsonDecode(res.body);
+      print(tokens['access']);
+      access = tokens['access'];
+      refresh = tokens['refresh'];
+      Navigator.of(context).pushNamed('/');
     }
   }
   Widget build(BuildContext context) {
@@ -73,7 +80,7 @@ class _UsernameLoginState extends State<UsernameLogin> {
                         letterSpacing: 0.3
                     )
                 ),
-                SizedBox(height: 27),
+                SizedBox(height: 30),
                 Text(
                     "Once you login, your username will be used for all ride-related communication and ticket purchases.",
                     style: TextStyle(
@@ -82,7 +89,7 @@ class _UsernameLoginState extends State<UsernameLogin> {
                         fontSize: 16
                     )
                 ),
-                SizedBox(height:60),
+                SizedBox(height:65),
                 TextField(
                   onChanged: (value) => handleUsernameChange(value),
                   style: TextStyle(
@@ -90,8 +97,9 @@ class _UsernameLoginState extends State<UsernameLogin> {
                   ),
                   decoration: InputDecoration(
                     contentPadding: EdgeInsets.fromLTRB(10, 0, 10, 0),
-                    hintText: 'Username',
+                    hintText: 'Password',
                   ),
+                  obscureText: true,
                 ),
                 showCircularIndicator?Padding(
                   padding: const EdgeInsets.fromLTRB(0,50,0,0),
@@ -99,21 +107,22 @@ class _UsernameLoginState extends State<UsernameLogin> {
                     child: CircularProgressIndicator(),
                   ),
                 ):SizedBox(),
-                showUsernameValError?Container(
-                  padding: EdgeInsets.fromLTRB(10, 6, 0, 0),
-                  child: Text("Username does not exist *",
-                    style:TextStyle(
-                      color: Colors.red,
-                      fontSize: 15
+                showLoginError?Container(
+                    padding: EdgeInsets.fromLTRB(10, 6, 0, 0),
+                    child: Text("Invalid Password *",
+                        style:TextStyle(
+                            color: Colors.red,
+                            fontSize: 15
+                        )
                     )
-                  )
                 ):SizedBox(),
+
                 Spacer(),
                 Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     FlatButton(
-                      onPressed: validateUsername,
+                      onPressed: loginUser,
                       child: Text("Next",
                           style: TextStyle(
                             color: Colors.white,
